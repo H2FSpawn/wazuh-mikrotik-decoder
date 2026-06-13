@@ -1,0 +1,62 @@
+<!--
+  MikroTik RouterOS Wazuh Rules
+  https://github.com/H2FSpawn/wazuh-mikrotik-decoder
+
+  Rule ID range: 110001-110010
+  If you add custom rules, start at 110011 to avoid conflicts.
+-->
+
+<group name="mikrotik,">
+
+  <!-- Firewall -->
+  <rule id="110001" level="3">
+    <decoded_as>mikrotik-firewall</decoded_as>
+    <description>MikroTik: Firewall event from $(srcip):$(srcport) to $(dstip):$(dstport)</description>
+    <group>firewall,</group>
+  </rule>
+
+  <rule id="110002" level="5">
+    <decoded_as>mikrotik-firewall</decoded_as>
+    <match>forward: drop</match>
+    <description>MikroTik: Firewall dropped connection from $(srcip):$(srcport) to $(dstip):$(dstport)</description>
+    <group>firewall_drop,</group>
+  </rule>
+
+  <!-- DHCP -->
+  <rule id="110003" level="3">
+    <decoded_as>mikrotik-dhcp</decoded_as>
+    <description>MikroTik: DHCP lease assigned $(srcip) to $(hostname)</description>
+    <group>dhcp,</group>
+  </rule>
+
+  <!-- System -->
+  <rule id="110004" level="3">
+    <decoded_as>mikrotik-system</decoded_as>
+    <description>MikroTik: System event</description>
+    <group>system,</group>
+  </rule>
+
+  <rule id="110005" level="10">
+    <decoded_as>mikrotik-system</decoded_as>
+    <match>login failure</match>
+    <description>MikroTik: Failed login attempt</description>
+    <group>authentication_failed,</group>
+  </rule>
+
+  <rule id="110006" level="12">
+    <if_matched_sid>110005</if_matched_sid>
+    <same_source_ip />
+    <frequency>5</frequency>
+    <timeframe>60</timeframe>
+    <description>MikroTik: Brute force attack detected from $(srcip)</description>
+    <group>authentication_failed,brute_force,</group>
+  </rule>
+
+  <rule id="110007" level="8">
+    <decoded_as>mikrotik-system</decoded_as>
+    <match>interface .* down</match>
+    <description>MikroTik: Interface went down</description>
+    <group>network,</group>
+  </rule>
+
+</group>

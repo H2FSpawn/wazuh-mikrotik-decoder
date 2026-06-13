@@ -1,0 +1,33 @@
+<!--
+  MikroTik RouterOS Wazuh Decoder
+  https://github.com/H2FSpawn/wazuh-mikrotik-decoder
+
+  Tested: RouterOS 7.x, Wazuh 4.12-4.14
+  Syslog format: BSD (RFC 3164)
+
+  Known limitation: The "->" separator in RouterOS log messages is a
+  reserved character in Wazuh's regex engine and cannot be escaped.
+  Field separation uses [^,]+ as a workaround.
+
+  Parent-child decoder structures behave unreliably when the parent is
+  defined only via prematch. All decoders here are standalone.
+-->
+
+<!-- Firewall: extracts srcip, srcport, dstip, dstport, interface -->
+<decoder name="mikrotik-firewall">
+  <prematch>^\S+ \S+ firewall,</prematch>
+  <regex>in:(\S+) \.+ (\d+\.\d+\.\d+\.\d+):(\d+)[^,]+(\d+\.\d+\.\d+\.\d+):(\d+)</regex>
+  <order>extra_data, srcip, srcport, dstip, dstport</order>
+</decoder>
+
+<!-- DHCP: extracts assigned IP, MAC address, and client hostname -->
+<decoder name="mikrotik-dhcp">
+  <prematch>^\S+ \S+ dhcp,</prematch>
+  <regex>assigned (\d+\.\d+\.\d+\.\d+) to (\S+) \((\S+)\)</regex>
+  <order>srcip, extra_data, hostname</order>
+</decoder>
+
+<!-- System: general RouterOS system messages, no field extraction -->
+<decoder name="mikrotik-system">
+  <prematch>^\S+ \S+ system,</prematch>
+</decoder>
