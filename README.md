@@ -10,7 +10,7 @@ noise unless you have a decoder that knows what to look for. This is that decode
 
 Three syslog topics, with structured field extraction:
 
-- **Firewall** — source IP, destination IP, port, interface, drop detection (rules 110001–110002)
+- **Firewall** — source IP and port via `proto` anchor, drop detection (rules 110001–110002)
 - **DHCP** — lease events with IP, MAC address, and client hostname (rule 110003)
 - **System** — general RouterOS system messages, login failure detection, brute force detection, interface down events (rules 110004–110007)
 
@@ -43,13 +43,31 @@ Restrict `allowed-ips` to your own network. UDP 514 should never be reachable fr
 
 ## Known limitations
 
-The `->` character sequence that RouterOS uses as a separator in certain log
-messages is a reserved character in Wazuh's regex engine and cannot be escaped.
-The workaround is `[^,]+` as a field separator — that's what this decoder uses.
+**Firewall: dstip and dstport not extractable**
+RouterOS separates source and destination with `->` in firewall log lines
+(e.g. `1.2.3.4:54321->192.168.10.1:443`). The `->` sequence is a reserved
+operator in Wazuh's regex engine and cannot be escaped or matched as a literal.
+srcip and srcport are extracted reliably via the `proto` keyword anchor.
+dstip and dstport are not extracted.
 
+**Firewall: TCP flag annotations interfere with field extraction**
+When RouterOS appends TCP flags like `(SYN)` or `(ACK)` after the protocol
+(e.g. `proto TCP (SYN), 1.2.3.4:54321`), the parentheses break the `proto \S+,`
+regex anchor and field extraction fails. The firewall event still matches and
+fires rule 110001 or 110002, but without srcip/srcport.
+To avoid this, configure RouterOS firewall logging without TCP flag annotations,
+or accept that flagged connections match without field extraction.
+
+**DHCP: field extraction only for assigned lease events**
+The DHCP decoder extracts IP, MAC, and hostname only from `assigned` lease lines.
+Other DHCP events (`offering`, `deassigned`, etc.) match rule 110003 without
+field extraction.
+
+**Standalone decoders only**
 Parent-child decoder structures are unreliable when the parent is defined only
 via `prematch`. All decoders here are standalone for that reason.
 
+**RouterOS syslog timestamp**
 RouterOS omits the year from BSD syslog timestamps. Wazuh handles this correctly
 but may log a parsing warning on first startup. This is cosmetic.
 

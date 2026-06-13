@@ -5,29 +5,36 @@
   Tested: RouterOS 7.x, Wazuh 4.12-4.14
   Syslog format: BSD (RFC 3164)
 
-  Known limitation: The "->" separator in RouterOS log messages is a
-  reserved character in Wazuh's regex engine and cannot be escaped.
-  Field separation uses [^,]+ as a workaround.
-
-  Parent-child decoder structures behave unreliably when the parent is
-  defined only via prematch. All decoders here are standalone.
+  Known limitations:
+  - The "->" separator in RouterOS firewall logs is a reserved operator
+    in Wazuh's regex engine and cannot be escaped. As a result, dstip
+    and dstport cannot be extracted from firewall events.
+    srcip and srcport are extracted via the "proto" field anchor.
+  - The "(SYN)"/"(ACK)" flags in firewall logs interfere with regex
+    matching when placed between "proto" and the IP. Use firewall log
+    format without flags, or accept that flagged lines match rule 110001
+    without field extraction.
+  - DHCP field extraction only works for "assigned" lease events.
+    "offering" and other DHCP events match rule 110003 without fields.
+  - Parent-child decoder structures are unreliable in this context.
+    All decoders here are standalone.
 -->
 
-<!-- Firewall: extracts srcip, srcport, dstip, dstport, interface -->
+<!-- Firewall: extracts srcip and srcport via "proto" anchor -->
 <decoder name="mikrotik-firewall">
-  <prematch>^\S+ \S+ firewall,</prematch>
-  <regex>in:(\S+) \.+ (\d+\.\d+\.\d+\.\d+):(\d+)[^,]+(\d+\.\d+\.\d+\.\d+):(\d+)</regex>
-  <order>extra_data, srcip, srcport, dstip, dstport</order>
+  <prematch>firewall,</prematch>
+  <regex>proto \S+, (\d+\.\d+\.\d+\.\d+):(\d+)</regex>
+  <order>srcip, srcport</order>
 </decoder>
 
 <!-- DHCP: extracts assigned IP, MAC address, and client hostname -->
 <decoder name="mikrotik-dhcp">
-  <prematch>^\S+ \S+ dhcp,</prematch>
+  <prematch>dhcp,</prematch>
   <regex>assigned (\d+\.\d+\.\d+\.\d+) to (\S+) \((\S+)\)</regex>
   <order>srcip, extra_data, hostname</order>
 </decoder>
 
 <!-- System: general RouterOS system messages, no field extraction -->
 <decoder name="mikrotik-system">
-  <prematch>^\S+ \S+ system,</prematch>
+  <prematch>system,</prematch>
 </decoder>
