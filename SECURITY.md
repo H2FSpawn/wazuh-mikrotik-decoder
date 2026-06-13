@@ -2,10 +2,12 @@
 
 ## Reporting a vulnerability
 
-If you find a security issue in this project, please do not open a
-public GitHub issue. Send a mail to sandro@puccios.de with a
-description of the problem. I will respond within a few days and
-coordinate a fix before any public disclosure.
+Please use GitHub's private vulnerability reporting to flag security
+issues. Go to the Security tab of this repository and click
+"Report a vulnerability" — this keeps the report private until a fix
+is in place.
+
+I will respond within a few days and coordinate disclosure from there.
 
 ## Scope
 
