@@ -11,7 +11,7 @@ noise unless you have a decoder that knows what to look for. This is that decode
 Three syslog topics, with structured field extraction:
 
 - **Firewall** — source IP and port via `proto` anchor, drop detection (rules 110001–110002)
-- **DHCP** — lease events with IP, MAC address, and client hostname (rule 110003)
+- **DHCP** — assigned lease events with IP, MAC address, and client hostname (rule 110003); other DHCP events (offering, deassigned) match without field extraction
 - **System** — general RouterOS system messages, login failure detection, brute force detection, interface down events (rules 110004–110007)
 
 Tested on RouterOS 7.x and Wazuh 4.12–4.14.
@@ -50,13 +50,15 @@ operator in Wazuh's regex engine and cannot be escaped or matched as a literal.
 srcip and srcport are extracted reliably via the `proto` keyword anchor.
 dstip and dstport are not extracted.
 
-**Firewall: TCP flag annotations interfere with field extraction**
-When RouterOS appends TCP flags like `(SYN)` or `(ACK)` after the protocol
-(e.g. `proto TCP (SYN), 1.2.3.4:54321`), the parentheses break the `proto \S+,`
-regex anchor and field extraction fails. The firewall event still matches and
-fires rule 110001 or 110002, but without srcip/srcport.
-To avoid this, configure RouterOS firewall logging without TCP flag annotations,
-or accept that flagged connections match without field extraction.
+**Firewall: TCP flag annotations prevent field extraction**
+RouterOS can append TCP flags like `(SYN)` or `(ACK)` after the protocol
+(e.g. `proto TCP (SYN), 1.2.3.4:54321`). Because Wazuh applies only the
+first matching decoder per event, a second decoder for the flags variant
+cannot be used. Configure RouterOS firewall logging without TCP flag
+annotations to ensure srcip/srcport are always extracted.
+See [docs/mikrotik-syslog-setup.md](docs/mikrotik-syslog-setup.md) for
+the recommended RouterOS logging configuration.
+Events still match and fire rules even without field extraction.
 
 **DHCP: field extraction only for assigned lease events**
 The DHCP decoder extracts IP, MAC, and hostname only from `assigned` lease lines.

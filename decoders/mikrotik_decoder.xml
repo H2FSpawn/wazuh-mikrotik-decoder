@@ -10,10 +10,12 @@
     in Wazuh's regex engine and cannot be escaped. As a result, dstip
     and dstport cannot be extracted from firewall events.
     srcip and srcport are extracted via the "proto" field anchor.
-  - The "(SYN)"/"(ACK)" flags in firewall logs interfere with regex
-    matching when placed between "proto" and the IP. Use firewall log
-    format without flags, or accept that flagged lines match rule 110001
-    without field extraction.
+  - TCP flag annotations like "(SYN)" or "(ACK)" in firewall logs
+    prevent srcip/srcport extraction because Wazuh applies only the
+    first matching decoder per event. Configure RouterOS firewall
+    logging without TCP flags to ensure field extraction works.
+    See docs/mikrotik-syslog-setup.md for the recommended configuration.
+    Events still match and fire rules even without field extraction.
   - DHCP field extraction only works for "assigned" lease events.
     "offering" and other DHCP events match rule 110003 without fields.
   - Parent-child decoder structures are unreliable in this context.
@@ -21,6 +23,8 @@
 -->
 
 <!-- Firewall: extracts srcip and srcport via "proto" anchor -->
+<!-- Note: TCP flag annotations (SYN/ACK) prevent field extraction. -->
+<!-- Configure RouterOS without flags for reliable extraction.      -->
 <decoder name="mikrotik-firewall">
   <prematch>firewall,</prematch>
   <regex>proto \S+, (\d+\.\d+\.\d+\.\d+):(\d+)</regex>
