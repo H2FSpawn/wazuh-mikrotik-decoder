@@ -65,9 +65,7 @@ systemctl restart wazuh-manager
 
 Firewall drop:
 ```
-Mar 16 22:14:05 router firewall,info forward: in:ether1 out:bridge
-src-mac aa:bb:cc:dd:ee:ff, proto TCP, 1.2.3.4:54312->192.168.10.5:22,
-len 60
+Mar 16 22:14:05 router firewall,info forward: drop in:ether1 out:bridge, src-mac aa:bb:cc:dd:ee:ff, proto TCP, 1.2.3.4:54312->192.168.10.5:22, len 60
 ```
 
 DHCP lease:
@@ -81,6 +79,23 @@ System login failure:
 Mar 16 22:11:43 router system,info login failure for user admin from
 1.2.3.4 via ssh
 ```
+
+## Disabling TCP flag annotations
+
+RouterOS can append TCP flags like (SYN) or (ACK) to firewall log lines:
+
+```
+proto TCP (SYN), 1.2.3.4:54312->192.168.10.5:22
+```
+
+This prevents srcip and srcport from being extracted (see Known limitations
+in the README). To avoid this, do not add the `tcp-flags` option to your
+firewall logging rules. The default RouterOS configuration does not include
+them, so no action is needed unless you explicitly enabled them.
+
+If you see flags in your logs and want to disable them, check your firewall
+rules in Winbox under IP → Firewall → Filter Rules and remove any
+`log-prefix` or flag-related options from rules that have logging enabled.
 
 ## Testing the decoder
 
