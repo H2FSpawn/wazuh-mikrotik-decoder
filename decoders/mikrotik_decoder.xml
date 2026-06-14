@@ -6,14 +6,9 @@
   Syslog format: BSD (RFC 3164)
 
   Known limitations:
-  - The "->" separator in RouterOS firewall logs is a reserved operator
-    in Wazuh's regex engine and cannot be escaped. As a result, dstip
-    and dstport cannot be extracted from firewall events.
-    srcip and srcport are extracted via the "proto" field anchor.
   - TCP flag annotations like "(SYN)" or "(ACK)" in firewall logs
-    prevent srcip/srcport extraction because Wazuh applies only the
-    first matching decoder per event. Configure RouterOS firewall
-    logging without TCP flags to ensure field extraction works.
+    prevent full field extraction. Configure RouterOS firewall
+    logging without TCP flags for reliable srcip/dstip extraction.
     See docs/mikrotik-syslog-setup.md for the recommended configuration.
     Events still match and fire rules even without field extraction.
   - DHCP field extraction only works for "assigned" lease events.
@@ -22,20 +17,22 @@
     All decoders here are standalone.
 -->
 
-<!-- Firewall: extracts srcip and srcport via "proto" anchor -->
-<!-- Note: TCP flag annotations (SYN/ACK) prevent field extraction. -->
-<!-- Configure RouterOS without flags for reliable extraction.      -->
+<!-- Firewall: extracts srcip, srcport, dstip, dstport               -->
+<!-- Requires RouterOS firewall logging without TCP flag annotations. -->
+<!-- \p\p matches the "->" separator between src and dst IP:port.    -->
+<!-- Events with TCP flags still match and fire rules,               -->
+<!-- but IP fields will not be extracted.                            -->
 <decoder name="mikrotik-firewall">
   <prematch>firewall,</prematch>
-  <regex>proto \S+, (\d+\.\d+\.\d+\.\d+):(\d+)</regex>
-  <order>srcip, srcport</order>
+  <regex type="pcre2">proto \S+, (\d+\.\d+\.\d+\.\d+):(\d+)->(\d+\.\d+\.\d+\.\d+):(\d+)</regex>
+  <order>srcip, srcport, dstip, dstport</order>
 </decoder>
 
 <!-- DHCP: extracts assigned IP, MAC address, and client hostname -->
 <decoder name="mikrotik-dhcp">
   <prematch>dhcp,</prematch>
-  <regex>assigned (\d+\.\d+\.\d+\.\d+) to (\S+) \((\S+)\)</regex>
-  <order>srcip, extra_data, hostname</order>
+  <regex type="pcre2">assigned (\d+\.\d+\.\d+\.\d+) to (\S+) \((\S+)\)</regex>
+  <order>srcip, extra_data, extra_data2</order>
 </decoder>
 
 <!-- System: general RouterOS system messages, no field extraction -->

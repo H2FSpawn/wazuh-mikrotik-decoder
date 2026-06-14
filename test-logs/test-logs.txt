@@ -1,0 +1,94 @@
+# MikroTik RouterOS – Wazuh Decoder Test Logs
+# https://github.com/H2FSpawn/wazuh-mikrotik-decoder
+#
+# Usage:
+#   /var/ossec/bin/wazuh-logtest
+#   Paste one line at a time and verify Phase 2 decoded fields.
+#
+# IPs in these samples follow RFC 5737 / RFC 3849 documentation ranges:
+#   192.0.2.x     – external/WAN (TEST-NET-1, safe for public docs)
+#   10.0.10.x     – internal server VLAN example
+#   10.0.40.x     – internal client VLAN example
+#   10.0.55.x     – IoT VLAN example
+#   10.0.147.x    – WireGuard VPN subnet example
+#
+# Hostname "mikrotik-router" and interface names like "ether1-wan",
+# "vlan10-servers", "vlan40-clients" are generic RouterOS conventions.
+#
+# RouterOS syslog format: BSD RFC 3164
+#   MMM DD HH:MM:SS hostname topic,severity message
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# FIREWALL – decoder: mikrotik-firewall
+# Expected fields: srcip, srcport, dstip, dstport
+# Requires: RouterOS firewall log action WITHOUT TCP flag annotations
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Forward drop – external to internal server (rule 110002)
+Jun 14 03:12:44 mikrotik-router firewall,info forward: drop in:ether1-wan out:vlan10-servers, proto TCP, 192.0.2.23:54821->10.0.10.100:8006, len 60
+
+# Forward drop – inter-VLAN traffic blocked by policy (rule 110002)
+Jun 14 03:13:05 mikrotik-router firewall,info forward: drop in:vlan40-clients out:vlan10-servers, proto TCP, 10.0.40.22:49152->10.0.10.6:445, len 52
+
+# Forward accept – VPN client to internal service (rule 110001)
+Jun 14 03:14:18 mikrotik-router firewall,info forward: accept in:wireguard-vpn out:vlan10-servers, proto TCP, 10.0.147.4:51234->10.0.10.100:8006, len 64
+
+# Forward drop – UDP probe from external (rule 110002)
+Jun 14 03:15:33 mikrotik-router firewall,info forward: drop in:ether1-wan out:vlan10-servers, proto UDP, 192.0.2.81:0->10.0.10.100:53, len 28
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FIREWALL WITH TCP FLAGS – decoder: mikrotik-firewall
+# Expected: rule fires (110002), NO IP fields extracted (limitation)
+# RouterOS logs TCP state like "TCP (SYN)", "TCP (ACK,RST)" etc.
+# Configure RouterOS without tcp-flags option to avoid this.
+# See docs/mikrotik-syslog-setup.md for the recommended configuration.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# SYN drop – new connection attempt blocked (rule 110002, no fields)
+Jun 14 03:16:02 mikrotik-router firewall,info forward: drop in:ether1-wan out:vlan10-servers, connection-state:new, proto TCP (SYN), 192.0.2.44:61200->10.0.10.100:22, len 60
+
+# RST drop – invalid connection state (rule 110002, no fields)
+Jun 14 03:16:45 mikrotik-router firewall,info forward: drop in:ether1-wan out:vlan10-servers, connection-state:invalid, proto TCP (RST), 192.0.2.12:38512->10.0.10.14:443, len 40
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DHCP – decoder: mikrotik-dhcp
+# Expected fields: srcip (assigned IP), extra_data (MAC), extra_data2 (hostname)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# DHCP lease assigned – client with hostname (rule 110003)
+Jun 14 07:01:12 mikrotik-router dhcp,info dhcp-vlan40: assigned 10.0.40.22 to e4:5f:01:ab:cd:12 (laptop-office)
+
+# DHCP lease assigned – IoT device (rule 110003)
+Jun 14 07:02:34 mikrotik-router dhcp,info dhcp-vlan55: assigned 10.0.55.31 to b4:e6:2d:11:22:33 (iot-sensor-01)
+
+# DHCP offering – no field extraction, rule 110003 still fires without fields
+Jun 14 07:03:01 mikrotik-router dhcp,info dhcp-vlan40: offering 10.0.40.23 to e4:5f:01:ab:cd:99
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SYSTEM – decoder: mikrotik-system
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Generic system info (rule 110004)
+Jun 14 02:00:01 mikrotik-router system,info router rebooted
+
+# Failed login – SSH (rule 110005)
+Jun 14 09:15:44 mikrotik-router system,error,critical login failure for user admin from 192.0.2.77 via ssh
+
+# Failed login – Winbox (rule 110005)
+Jun 14 09:16:01 mikrotik-router system,error,critical login failure for user admin from 192.0.2.77 via winbox
+
+# Failed login – Web (rule 110005)
+Jun 14 09:16:18 mikrotik-router system,error,critical login failure for user admin from 192.0.2.77 via web
+
+# Repeat logins same source – triggers brute force rule 110006 after 5 occurrences
+Jun 14 09:16:35 mikrotik-router system,error,critical login failure for user admin from 192.0.2.77 via ssh
+Jun 14 09:16:52 mikrotik-router system,error,critical login failure for user admin from 192.0.2.77 via ssh
+
+# Interface down – WAN link (rule 110007)
+Jun 14 10:44:03 mikrotik-router system,info,interface ether1-wan went down
+
+# Interface down – VPN tunnel (rule 110007)
+Jun 14 10:44:21 mikrotik-router system,info,interface wireguard-vps went down
+
+# WireGuard peer connected (rule 110004 – no dedicated rule yet)
+Jun 14 08:30:17 mikrotik-router system,info wireguard peer connected, endpoint 192.0.2.55:51820
