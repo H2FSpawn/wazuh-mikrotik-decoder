@@ -11,21 +11,21 @@
   <!-- Firewall -->
   <rule id="110001" level="3">
     <decoded_as>mikrotik-firewall</decoded_as>
-    <description>MikroTik: Firewall event from $(srcip):$(srcport)</description>
+    <description>MikroTik: Firewall event</description>
     <group>firewall,</group>
   </rule>
 
   <rule id="110002" level="5">
     <decoded_as>mikrotik-firewall</decoded_as>
     <match>forward: drop</match>
-    <description>MikroTik: Firewall dropped connection from $(srcip):$(srcport)</description>
+    <description>MikroTik: Firewall dropped connection</description>
     <group>firewall_drop,</group>
   </rule>
 
   <!-- DHCP -->
   <rule id="110003" level="3">
     <decoded_as>mikrotik-dhcp</decoded_as>
-    <description>MikroTik: DHCP lease assigned $(srcip) to $(hostname)</description>
+    <description>MikroTik: DHCP lease assigned $(srcip) to $(extra_data2)</description>
     <group>dhcp,</group>
   </rule>
 
@@ -51,8 +51,8 @@
   </rule>
 
   <rule id="110007" level="8">
-    <decoded_as>mikrotik-system</decoded_as>
-    <match>interface .+ down</match>
+    <if_sid>110004</if_sid>
+    <match>went down</match>
     <description>MikroTik: Interface went down</description>
     <group>network,</group>
   </rule>

@@ -10,7 +10,7 @@ noise unless you have a decoder that knows what to look for. This is that decode
 
 Three syslog topics, with structured field extraction:
 
-- **Firewall** — source IP and port via `proto` anchor, drop detection (rules 110001–110002)
+- **Firewall** — source IP, source port, destination IP, and destination port; drop detection (rules 110001–110002)
 - **DHCP** — assigned lease events with IP, MAC address, and client hostname (rule 110003); other DHCP events (offering, deassigned) match without field extraction
 - **System** — general RouterOS system messages, login failure detection, brute force detection, interface down events (rules 110004–110007)
 
@@ -41,29 +41,35 @@ Restrict `allowed-ips` to your own network. UDP 514 should never be reachable fr
 
 **MikroTik:** See [docs/mikrotik-syslog-setup.md](docs/mikrotik-syslog-setup.md) for the full RouterOS configuration.
 
-## Known limitations
+## Testing
 
-**Firewall: dstip and dstport not extractable**
-RouterOS separates source and destination with `->` in firewall log lines
-(e.g. `1.2.3.4:54321->192.168.10.1:443`). The `->` sequence is a reserved
-operator in Wazuh's regex engine and cannot be escaped or matched as a literal.
-srcip and srcport are extracted reliably via the `proto` keyword anchor.
-dstip and dstport are not extracted.
+Sample log lines for all supported event types are provided in `test-logs/test-logs.txt`.
+Use them with `wazuh-logtest` to verify the decoder and rules are working correctly:
+
+```bash
+/var/ossec/bin/wazuh-logtest
+```
+
+Paste one line at a time and check Phase 2 for the expected decoded fields.
+
+## Known limitations
 
 **Firewall: TCP flag annotations prevent field extraction**
 RouterOS can append TCP flags like `(SYN)` or `(ACK)` after the protocol
-(e.g. `proto TCP (SYN), 1.2.3.4:54321`). Because Wazuh applies only the
-first matching decoder per event, a second decoder for the flags variant
-cannot be used. Configure RouterOS firewall logging without TCP flag
-annotations to ensure srcip/srcport are always extracted.
+(e.g. `proto TCP (SYN), 1.2.3.4:54321`). When TCP flag annotations are present,
+the firewall decoder does not extract IP fields. Events still match and fire
+rules — only field extraction is affected.
+Configure RouterOS firewall logging without TCP flag annotations to ensure
+srcip, srcport, dstip, and dstport are always extracted.
 See [docs/mikrotik-syslog-setup.md](docs/mikrotik-syslog-setup.md) for
 the recommended RouterOS logging configuration.
-Events still match and fire rules even without field extraction.
 
 **DHCP: field extraction only for assigned lease events**
-The DHCP decoder extracts IP, MAC, and hostname only from `assigned` lease lines.
-Other DHCP events (`offering`, `deassigned`, etc.) match rule 110003 without
-field extraction.
+The DHCP decoder extracts IP, MAC, and client hostname only from `assigned`
+lease lines. Other DHCP events (`offering`, `deassigned`, etc.) match
+rule 110003 without field extraction. The client hostname is stored in
+`extra_data2` (not the `hostname` field, which is reserved by Wazuh for
+the pre-decoding phase).
 
 **Standalone decoders only**
 Parent-child decoder structures are unreliable when the parent is defined only
